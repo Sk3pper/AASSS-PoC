@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Login SSS</title>
+  <!-- CORE CSS-->
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.1/css/materialize.min.css">
+
+    <style type="text/css">
+    html,
+    body {
+        height: 100%;
+    }
+    html {
+        display: table;
+        margin: auto;
+    }
+    body {
+        display: table-cell;
+        vertical-align: middle;
+    }
+    .margin {
+      margin: 0 !important;
+    }
+    </style>
+
+    <!-- jQuery Library -->
+ <script type="text/javascript" src="../static/jquery.min.js"></script>
+  <!--materialize js-->
+  <script src="../static/materialize.min.js"></script>
+  <script src="../static/jquery.min.js" type="text/javascript"></script>
+  <script src="../static/BigInteger.min.js" type="text/javascript"></script>
+  <script src="../static/aes.js" type="text/javascript"></script>
+  <script src="../static/pbkdf2.js" type="text/javascript"></script>
+  <script src="../static/aes_custom_key.js" type="text/javascript"></script>
+  <script src="../static/utilities.js" type="text/javascript"></script>
+  <script src="../static/CodiciErrori.js" type="text/javascript"></script>
+  <script>
+        $(function(){
+            $('button').click(function(){
+              var user = $('#username').val();
+              var pass = $('#password').val();
+              // alert("user: "+user+"\n"+ "pass: "+pass+"\n")
+              // now can contact the dealer and external server through AJAX
+
+              // retrieve  STORED DATA{S', [x1,..,xn], S'', MC', Ems, id_user}
+                   var json_old_data = getSavedData();
+                   json_old_data = JSON.parse(json_old_data);
+                   var r = json_old_data['r'];
+                   // recalculate S_prime
+                   var S_prime = sPrime(pass, r).toString();
+                   console.log("S_prime: "+S_prime);
+                   var pre_MC = json_old_data['preMc'];
+
+                   var r_prime = json_old_data['r_prime'];
+                   var MC = json_old_data['MC'];
+                   var MS =  json_old_data['MS'];
+                   var Coordinates = json_old_data['Coordinates'];
+                   var key = json_old_data['key'];
+
+               // COMPUTE NEW VALUES
+               // E_MS[preMC||k]
+               // data = str(MC_beforeEnc)+CHAR_DATA_SPLIT+str(k)
+               // computeEms(k, preMC, MS)
+
+                    var eMS = computeEms(key, pre_MC, MS);
+
+                    var json_data = newData(pass);
+                    // S_prime:S_prime, r:r, pre_MC:pre_MC, r_prime:r_prime, MC:ciphertext_base64,key_base64:key_base64,iv_base64:iv_base64})
+                    json_data = JSON.parse(json_data);
+                    var S_second = json_data['S_second'];
+                    var r_second = json_data['r_second'];
+                    var pre_MC_prime = json_data['pre_MC_prime'];
+                    var r_third = json_data['r_third'];
+                    var MC_prime = json_data['MC_prime'];
+                    var key_second = json_data['key_second'];
+
+
+              // 1- send WHOLE DATA to Dealer [AJAX]
+                 // request model: REC1|||sPrime||x1,x2,..,xn||sSecond||mcPrime||eMS||id_user
+                 // replay model: [x1', .., xn']
+
+                  var WHOLE_DATA = { "phase": 'REC1',
+                                     "Sprime": S_prime,
+                                     "Coordinate": Coordinates,
+                                     "Ssecond": S_second,
+                                      "MCprime": MC_prime,
+                                      "eMS": eMS,
+                                      "id_user":user};
+
+                  $.ajax({
+                      // send to Dealer
+                      url: 'https://192.168.99.104:3000/Rec1',
+                      data: WHOLE_DATA,
+                      type: 'POST',
+                      success: function(response){
+                          console.log("Dealer response:"+response );
+                          var res = response.split("||");
+
+                          if (res[0] === "200") {
+                              // 2- send eMS to ExternalServer [AJAX]
+                                // request model: model: REC2|||eMS||id_user
+                                // replay model: E_ms[k']
+                              console.log("Saves coordinates:"+res[1]);
+                              localStorage.setItem("Coordinates_prime", res[1]);
+                              var Coordinates_prime = res[1];
+
+                              var Rec2_data_I = {
+                                  "phase": 'REC2',
+                                  "eMS": eMS,
+                                  "id_user": user
+                              };
+
+                              $.ajax({
+                                  // send to External server
+                                  url: 'https://192.168.99.104:4000/Rec2',
+                                  data: Rec2_data_I,
+                                  type: 'POST',
+                                  xhrFields: {withCredentials: true },
+
+                                  success: function (response) {
+                                      // response should be E_ms[k']
+                                      console.log("\nES I° response:" + response);
+
+                                      var res = response.split("||");
+
+                                      console.log(res[0]);
+                                      if (res[0] === COD200) {
+                                          // Client performs some checks
+                                          console.log("Check that D_k'[MS] = MC");
+
+                                          console.log("MS: " + MS);
+                                          console.log("E_ms[k']: " + res[1]);
+
+                                          var k_prime = AES_decrypt(res[1], MS);
+                                          console.log("k_prime: " + k_prime);
+
+                                          var MC_from_MS = AES_decrypt(MS, k_prime);
+
+                                          console.log(" MC_from_MS=D_k'[MS] : " + MC_from_MS);
+                                          console.log("MC: " + MC);
+
+                                          if (MC === MC_from_MS) {
+                                              // 3. send MC' to ES
+                                              // request model: MC'
+                                              // replay model: MS'
+
+                                              console.log("Second call to the ES");
+                                              var Rec2_data_II = {
+                                                  "phase": 'REC2',
+                                                  "MC_prime": MC_prime,
+                                                  "id_user": user
+                                              };
+
+
+                                              $.ajax({
+                                                  url: 'https://192.168.99.104:4000/Rec2',
+                                                  data: Rec2_data_II,
+                                                  type: 'POST',
+                                                  xhrFields: {
+                                                      withCredentials: true
+                                                  },
+
+
+                                                  success: function (response) {
+                                                       var res = response.split("||");
+
+                                                      if (res[0] === COD200) {
+                                                          console.log("ES II° response:" + response);
+                                                          // save in local
+                                                          // save everything
+                                                          var MS_prime = res[1];
+                                                          localStorage.setItem("MS_prime", MS_prime);
+
+                                                          //replace old values
+                                                          //S_prime = S_second;
+                                                          //localStorage.setItem("S_prime", S_prime);
+
+                                                          // r = r_second non r_prime! occhio che ti sbagli
+                                                          r = r_second;
+                                                          localStorage.setItem("r", r);
+                                                          localStorage.removeItem("r_second");
+
+                                                          pre_MC = pre_MC_prime;
+                                                          localStorage.setItem("preMc", pre_MC);
+                                                          localStorage.removeItem("pre_MC_prime");
+
+                                                          r_prime = r_third;
+                                                          localStorage.setItem("r_prime", r_prime);
+                                                          localStorage.removeItem("r_third");
+
+                                                          MC = MC_prime;
+                                                          localStorage.setItem("MC", MC);
+                                                          localStorage.removeItem("MC_prime");
+
+                                                          key = key_second;
+                                                          localStorage.setItem("key", key);
+                                                          localStorage.removeItem("key_second");
+
+                                                          Coordinates = Coordinates_prime;
+                                                          localStorage.setItem("Coordinates", Coordinates);
+                                                          localStorage.removeItem("Coordinates_prime");
+
+                                                          MS = MS_prime;
+                                                          localStorage.setItem("MS", MS);
+                                                          localStorage.removeItem("MS_prime");
+                                                          console.log("MS: " + MS);
+                                                          console.log("MS_prime: " + MS_prime);
+                                                      }else{
+                                                          checkErrorRec(res[1])
+                                                          window.location = "https://192.168.99.104:4000/ErrorPage"
+                                                      }
+
+                                                      // r_second = r_third;
+                                                      //localStorage.setItem("r_second", r_second);
+                                                      //Console.log("Coordinates: "+Coordinates);
+                                                      //console.log("Coordinates_prime: "+Coordinates_prime);
+
+
+                                                      window.location = "https://192.168.99.104:4000/Homepage"
+                                                  },
+                                                  error: function (error) {
+                                                      console.log(error);
+                                                      window.location = "https://192.168.99.104:4000/ErrorPage"
+                                                  }
+                                              });
+
+                                          } else {
+                                              console.log("MC != MC_from_MS = D_k'[MS]");
+                                              var msg = "1000||D_k'[MS] != MC External Server is cheating (6)";
+                                              console.log(msg);
+                                              alert("External Server is cheating (6)");
+                                              window.location = "https://192.168.99.104:4000/ErrorPage"
+                                          }
+
+                                      }else{
+                                          // at the first message Dealer has replay with some error
+                                            checkErrorRec(res[0]);
+                                            window.location =  "/ErrorPage"
+                                      }
+
+                                      },
+                                      error: function (error) {
+                                          console.log(error);
+                                          window.location = "https://192.168.99.104:3000/ErrorPage"
+                                      }
+                              });
+
+
+                          } else {
+                              checkErrorRec(response);
+                              console.log("Dealer response:"+response );
+                              //window.location = "/ErrorPage"
+                          }
+
+                      },
+                      error: function(error){
+                          console.log(error);
+                          // window.location =  "/ErrorPage"
+                      }
+                  });
+
+
+
+            });
+        });
+
+    </script>
+
+</head>
+
+<body class="blue">
+
+
+  <div id="login-page" class="row">
+    <div class="col s12 z-depth-6 card-panel">
+      <form class="login-form">
+        <div class="row">
+          <div class="input-field col s12 center">
+            <p class="center login-form-text"><h3>Log in</h3></p>
+          </div>
+        </div>
+
+
+        <div class="row margin">
+                <div class="input-field col s12">
+                  <i class="mdi-social-person-outline prefix"></i>
+                  <input id="username" type="text" class="validate">
+                  <label for="username" class="center-align">Username</label>
+                </div>
+              </div>
+
+
+        <div class="row margin">
+          <div class="input-field col s12">
+            <i class="mdi-action-lock-outline prefix"></i>
+            <input id="password" type="password">
+            <label for="password">Password</label>
+          </div>
+        </div>
+
+
+
+        <div class="row">
+          <div class="input-field col s12">
+               <button class="btn waves-effect waves-light col s12" type="button">Login</button>
+          </div>
+        </div>
+
+
+        <div class="row">
+          <div class="input-field col s12">
+            <p class="margin medium-small"> <a href="/">Register Now!</a></p>
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+
+</body>
+
+</html>

@@ -1,0 +1,259 @@
+version: "3.4"
+services:
+    MasterJarvis:
+        image: 127.0.0.1:5000/dealer
+        stdin_open: true
+        tty: true
+        ports:
+            - 3000:3000 # port Dealer-Flask
+          #- target: 80
+          #- published: 8787
+          #- protocol: tcp
+          # - mode: ingress
+        networks:
+            - backend
+            - dealer_es 
+        volumes:
+            - type: volume
+              source: masterjarvis_volume
+              target: /home-user 
+              
+            - type: bind
+              source: /SSS/Scripts/
+              # user-script dir is created at bild-time
+              target: /user-script/
+              read_only: true
+        deploy: 
+            mode: replicated
+            replicas: 1
+            placement:
+               constraints: 
+                    - node.hostname==swarm-manager
+
+    Jarvis1:
+        image: 127.0.0.1:5000/shareholder
+        # build: .
+        volumes:
+            - type: volume
+              source: jarvis_volume1
+              target: /home-user
+              
+            - type: bind
+              source: /SSS/Scripts/
+              # user-script dir is created at bild-time
+              target: /user-script/
+              read_only: true
+        stdin_open: true
+        tty: true
+        networks:
+             - backend
+        deploy: 
+            mode: replicated
+            replicas: 1
+            placement:
+               constraints: 
+                    - node.hostname==swarm-manager
+    Jarvis2:
+        image: 127.0.0.1:5000/shareholder
+        # build: .
+        volumes:
+            - type: volume
+              source: jarvis_volume2
+              target: /home-user
+              
+            - type: bind
+              source: /SSS/Scripts/
+              # user-script dir is created at bild-time
+              target: /user-script/
+              read_only: true
+        stdin_open: true
+        tty: true
+        networks:
+             - backend
+                
+        deploy:
+            mode: replicated
+            replicas: 1
+            placement:
+               constraints:
+                  - node.hostname == swarm-worker-0      
+    Jarvis3:
+        image: 127.0.0.1:5000/shareholder
+        # build: .
+        volumes:
+            - type: volume
+              source: jarvis_volume3
+              target: /home-user
+              
+            - type: bind
+              source: /SSS/Scripts/
+              # user-script dir is created at bild-time
+              target: /user-script/
+              read_only: true
+              
+        stdin_open: true
+        tty: true
+        networks:
+             - backend
+        deploy:
+            mode: replicated
+            replicas: 1
+            placement:
+               constraints:
+                  - node.hostname == swarm-worker-0
+    Jarvis4:
+        image: 127.0.0.1:5000/shareholder
+        # build: .
+        volumes:
+            - type: volume
+              source: jarvis_volume4
+              target: /home-user/data_users
+              
+            - type: bind
+              source: /SSS/Scripts/
+              # user-script dir is created at bild-time
+              target: /user-script/
+              read_only: true
+        stdin_open: true
+        tty: true
+        networks:
+             - backend
+        deploy:
+            mode: replicated
+            replicas: 1
+            placement:
+               constraints:
+                  - node.hostname == swarm-worker-1
+    Jarvis5:
+        image: 127.0.0.1:5000/shareholder
+        # build: .
+        volumes:
+            - type: volume
+              source: jarvis_volume5
+              target: /home-user/data_users
+              
+            - type: bind
+              source: /SSS/Scripts/
+              # user-script dir is created at bild-time
+              target: /user-script/
+              read_only: true
+        stdin_open: true
+        tty: true
+        networks:
+             - backend
+                
+        deploy:
+            mode: replicated
+            replicas: 1
+            placement:
+               constraints:
+                  - node.hostname == swarm-worker-1
+    ExternalServer:
+        image: 127.0.0.1:5000/externalserver
+        stdin_open: true
+        tty: true
+        ports:
+          - 4000:4000 # ExternalServer-Flasks
+        networks:
+             - dealer_es        
+        deploy:
+            mode: replicated
+            replicas: 1
+            placement:
+               constraints:
+                  - node.hostname == swarm-worker-1
+        volumes:
+            - type: volume
+              source: external_server_volume
+              target: /home-user/data_users
+              
+            - type: bind
+              source: /SSS/Scripts/
+              # user-script dir is created at bild-time
+              target: /user-script/
+              read_only: true          
+    Client:
+        image: 127.0.0.1:5000/shareholder
+        # build: .
+        volumes:
+            - type: volume
+              source: client
+              target: /home-user/data_users
+              
+            - type: bind
+              source: /SSS/Scripts/
+              # user-script dir is created at bild-time
+              target: /user-script/
+              read_only: true
+              
+        stdin_open: true
+        tty: true
+        networks:
+             - dealer_es 
+             - backend     
+        deploy:
+            mode: replicated
+            replicas: 1
+            placement:
+               constraints:
+                  - node.hostname == swarm-worker-0
+                  
+    LOG:
+        image: 127.0.0.1:5000/log
+        # build: .
+        volumes:
+            - type: volume
+              source: LOG
+              target: /home-user/data_users
+              
+            - type: bind
+              source: /SSS/Scripts/
+              # user-script dir is created at bild-time
+              target: /user-script/
+              read_only: true
+        stdin_open: true
+        tty: true
+        networks:
+             - dealer_es 
+             - backend     
+        deploy:
+            mode: replicated
+            replicas: 1
+            placement:
+               constraints:
+                  - node.hostname == swarm-manager
+               
+       
+networks:
+    backend:
+     # driver: bridge
+     # [for deply in stack]
+     # driver: overlay
+     driver: store/weaveworks/net-plugin:2.0.1
+     # [for deply in stack]
+     ipam:
+     # [for deply in stack] 
+       config:
+       # [for deply in stack]
+         - subnet: 10.0.0.0/24
+    
+    dealer_es:
+       driver: overlay
+       ipam:
+          config:
+              - subnet: 99.0.0.0/24
+volumes:
+  masterjarvis_volume:
+  jarvis_volume1:
+  jarvis_volume2:
+  jarvis_volume3:
+  jarvis_volume4:
+  jarvis_volume5:
+  external_server_volume:
+  client:
+  LOG:
+  jarvis_volume6:
+  jarvis_volume7:
+  jarvis_volume8:
+  jarvis_volume9:
+  jarvis_volume10:

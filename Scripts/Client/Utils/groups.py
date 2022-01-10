@@ -1,0 +1,108 @@
+# modp2048 group and h
+import sys
+
+
+class MODP2048:
+
+    # 700-digit
+    p700 = int(43541296145345379426170554180353055727191440646523138191278605133104043501069900637178068451850606698411911485342148022147355705107838524243636850891185413502399523850157398804062945667319354045255849182960668983815150659740281717722477110392351095854735899708492172956051119618057860321500212138549501371187196597552572635312301159251199958169676040680109293061695464169017481134411121279452609027687687198948998116523640131689706661612636436792306748526202691151208303114245920433933826094978515705357656419896335497655149086955592799824878597905138897642230913329944260680880698934449447023017285691302331403670981902334678579988147035305187250018758718790570525477359846226751954604142777127419100863)
+    q700 = int(8114292982733018901634467793580517280505300157756827840342639793720470276010044844796509215775364647486379330104761092461303709487111167395385175343120651044055073397345769437954332028945090205973881696414586094635697103939672329057487348190896588865958982427970960297437778534859832337215842739200428880206335556755977009935203346860081989968258673253840718051005490899928714337385598449394820914589580171254006357906008224317873026763443242041056047060417944679688464985882579283252669790342623128094978833376134084542517533908981140481714237403119436757776912659326176049362783998220172758668894090812957771835814741396697461794287557828025950432120521578563273476958599744083480172221911503432557)
+    g700 = int(20125)
+    h700 = int(26551)
+# ----------------------------------------------------------------------
+    # 250-digit
+    p250 = int(5554053263402624785673387123401890600422195865746459511213572804465388888673782810180238504823775733345501561201936684986963667080842979342023391333068308225584964785575876917135170750062489154407210832944461799040516295312260671396312891883324978444209)
+    q250 = int(4508160116398234403955671366397638474368665475443554798062964938689439033014434099172271513655662121221998020456117439112795184318866054660733272185932068364922861027253146848324002232193578859096762039727647564156263226714497298211292931723478066919)
+    g250 = int(939)
+    h250 = int(2381)
+# ----------------------------------------------------------------------
+    # 50-digit
+    p50 = int(2810255506518299868219687655921025336002922004875663)
+    q50 = int(82654573721126466712343754585912509882438882496343)
+    g50 = int(8)
+    h50 = int(10200)
+# ----------------------------------------------------------------------
+    t = int(10)
+    n = int(10)
+
+    MAX_COORDINATE = sys.maxint
+    MAX_RANDOM = sys.maxint
+
+
+class parametres:
+    DEALER = "MasterJarvis"
+    PORT_DEALER = 8000
+    EXTERNAL_SERVER = "ExternalServer"
+    PORT_EXTERNAL_SERVER = 6000
+    IP_LOG = "LOG"
+    PORT_LOG = 5000
+
+    ID_USER = 'Bomber'
+    CHAR_DATA_SPLIT = "||"
+    CHAR_COORD_SPLIT = ","
+    CHAR_MSG_SPLIT = "|||"
+    CHAR_LOG_DATA_SPLIT = "|-|"
+    CHAR_LOG_MSG_SPLIT = "-|-"
+    WHICH_PHASE = ['SHA1', 'SHA2', 'REC1', 'REC2']
+    WHICH_LOG = ['MSG', 'ERROR']
+
+    DELIM = "---"
+
+
+    # SHARING CODES
+    COD200 = "200"  # Everything is went well
+
+    COD100 = "100"  # User already signed-up [DEALER]
+    COD100_desc = "User already signed-up [DEALER]"
+
+    COD300 = "300"  # Problem while ES was computing E_k'[MC] because MC!=D_k'[MS]
+    COD150 = "150"  # User already signed-up [External Server]
+    COD170 = "170"  # User_id is not present -> Dealer did not contact me or client is anticipating the steps
+    COD400 = "400"  # MC_from_client != MC_from_Dealer
+    COD500 = "500"  # Problem while Shareholder was saving the share
+
+    COD550 = "550"  # Problem with SHA2, user_id dir is not present. Send MC before
+    COD550_desc = "Problem with SHA2, user_id dir is not present. Send MC before"
+
+    COD444 = "444"  # Generale error
+    COD444_desc = "General error,try again later"
+
+    # RECONSTRUCTION CODES
+    COD600 = "600"  # user_id is not presetn --> you have to pass to signup before
+    COD600_desc = "user_id is not present --> you have to pass to signup before"
+
+    COD700 = "700"  # x_i given to the SHAREHOLDER is not right --> deaelr compromised? (1)
+    COD750 = "750"  # (s_i,t_i) given to the SHAREHOLDER is not consistent --> dealer compromised sharing? (2)
+    COD760 = "760"  # user_id is not presetn --> you have to pass to signup before
+
+    COD800 = "800"  # Insufficient shares from shareholders --> check shareholders and xi given from client
+    COD800_desc = "Insufficient shares from shareholders --> check shareholders and xi given from client."
+
+    COD830 = "830"  # Some SHAREHOLDERS give to the dealer INCORRECT shares (3)
+    COD830_desc = "Some SHAREHOLDERS give to the dealer INCORRECT shares (3)"
+
+    COD850 = "850"  # Insufficient correct shares -> too much shareholder that cheated (4)
+    COD850_desc = "Insufficient correct shares -> too much shareholder that cheated (4)"
+
+    COD860 = "860"  # Client is cheating, S' != S' rec
+    COD860_desc = "Client is cheating, S' != S' rec"
+
+    COD880 = "880"  # Less than n-coordinates
+    COD880_desc = "Less than n-coordinates"
+
+    COD900 = "900"  # user_id is not presetn --> you have to pass to signup before
+    COD930 = "930"  # E_MS_Dealer != E_MS_Client --> Dealer or Client is cheating(5a)
+    COD960 = "960"  # D_k[MC_given_inSHA] != pre_MC --> Client is cheating (5b)
+    COD1000 = "1000"  # D_k'[MS] != MC External Server is cheating (6)
+
+    COD2000 = "2000"  # D_k[MC_given in SHA from client] != preMC --> Client is cheating (7)
+    COD2000_desc = "D_k[MC_given in SHA from client] != preMC --> Client is cheating (7)"
+
+    COD2400 = "2400"  # MC != D_k[MS] --> ExternalServer is cheating (8)
+    COD2400_desc = " MC != D_k[MS] --> ExternalServer is cheating (8)"
+
+    COD2600 = "2600"  # MC'_from_Client != MC'_from_ExternalServer --> Es or client is cheating (9)
+    COD2600_desc = "MC'_from_Client != MC'_from_ExternalServer --> Es or client is cheating (9)"
+
+    COD3000 = "3000"  # Unrecognized phase
+    COD3000_desc = "Unrecognized phase"

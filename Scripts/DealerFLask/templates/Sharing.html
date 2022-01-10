@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SHARING PHASE - SIGN UP</title>
+    <script src="static/jquery-1.9.0.js"></script>
+
+    <script>
+        $(function(){
+            $('button').click(function(){
+                var user = $('#txtUsername').val();
+                var pass = $('#txtPassword').val();
+                alert("user:"+user+"\n password: "+pass)
+                $.ajax({
+                    url: '/Sharing',
+                    //data: $('form').serialize(),
+                    //type: 'POST'
+                    success: function(response){
+                        console.log(response);
+                        window.location = "http://localhost:3000/Homepage"
+                    },
+                    error: function(error){
+                        console.log(error);
+                        window.location =  "http://localhost:3000/Homepage"
+                    }
+                });
+            });
+        });
+
+
+    </script>
+
+</head>
+<body width="70%">
+    <table  align="center" border="0">
+        <tr>
+             <td colspan="2" align="center">
+                 <h3>SHARING PHASE</h3>
+             </td>
+        </tr>
+        <tr>
+            <td>
+             <form class="form-signin"  role="form">
+                    <input type="email" id="txtUsername" name="username" class="form-control" placeholder="Email address" required autofocus>
+                    <br>
+                    <input type="password" id="txtPassword" name="password" class="form-control" placeholder="Password" required>
+                    <br>
+                    <button class="btn btn-lg btn-primary btn-block" type="button">Register</button>
+            </form>
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>

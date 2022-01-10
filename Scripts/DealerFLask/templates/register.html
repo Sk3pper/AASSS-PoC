@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Signup / Registration form using Material Design</title>
+    <!-- CORE CSS-->
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.1/css/materialize.min.css">
+    <style type="text/css">
+        html,body {
+        height: 100%;
+        }
+          html {
+              display: table;
+              margin: auto;
+          }
+          body {
+              display: table-cell;
+              vertical-align: middle;
+          }
+          .margin {
+            margin: 0 !important;
+          }
+    </style>
+    <!-- jQuery Library -->
+    <script src="../static/jquery.min.js" type="text/javascript"></script>
+    <!--materialize js-->
+    <script src="../static/materialize.min.js" type="text/javascript"></script>
+    <script src="../static/jquery.min.js" type="text/javascript"></script>
+    <script src="../static/BigInteger.min.js" type="text/javascript"></script>
+    <script src="../static/aes.js" type="text/javascript"></script>
+    <script src="../static/pbkdf2.js"></script>
+    <script src="../static/aes_custom_key.js" type="text/javascript"></script>
+    <script src="../static/aes_custom_key.js" type="text/javascript"></script>
+    <script src="../static/utilities.js" type="text/javascript"></script>
+     <script src="../static/CodiciErrori.js" type="text/javascript"></script>
+
+    <script>
+
+        $(function(){
+            $('button').click(function(){
+              var user = $('#username').val();
+              var pass = $('#password').val();
+              var passpass = $('#password-again').val();
+
+              if (pass !== passpass){
+                  alert("passwords are not equal")
+              }else{
+                   // 1. Send MC to Dealer [AJAX]
+                   // request model: SHA1|||MC||user_id
+                   // replay model: CODX||description --> CODX == 100 or 150 or 200 or 300
+
+                      var json_data = firstMessage(pass);
+                      //json_data: {S_prime:S_prime,r:r, pre_MC:pre_MC,r_prime:r_prime,MC:ciphertext,key:key}
+                      json_data = JSON.parse(json_data);
+                      var S_prime = json_data['S_prime'];
+                      var MC = json_data['MC'];
+                      var r = json_data['r'];
+                      var pre_MC = json_data['pre_MC'];
+                      var r_prime = json_data['r_prime'];
+                      var key = json_data['key'];
+
+                      if (MC !== null){
+                          var data_for_dealer = { "phase": 'SHA1', "MC": MC, "user_id":user};
+
+                          $.ajax({
+                          url: '/Sha1',
+                          //url: '/Sha3',
+                          data: data_for_dealer,
+                          type: 'POST',
+                          success: function(response){
+                              console.log("Dealer response:"+response );
+                              // check the answer
+                              var res = response.split("||");
+
+                              if (res[0] === COD200){
+                                   // 2. Request MS to ExternalServer [AJAX]
+                                   // request model: SHA2|||MC||user_id
+                                   // replay model: COD200||MS or CODX||description --> CODX == 170 or 400
+                                   var data_for_ES = { "phase": 'SHA2', "MC": MC,"user_id":user};
+                                   // var data_for_ES = { "phase": 'SHA2', "MC7": MC,"user_id":user};
+                                   $.ajax({
+                                      url: 'https://192.168.99.104:4000/ExternalServerSha2',
+                                       //url: '/Sha3',
+                                      data: data_for_ES,
+                                      type: 'POST',
+                                      success: function(response){
+                                          console.log("External Server response with MS:"+response);
+                                          var res = response.split("||");
+
+                                          if (res[0] === COD200){
+                                              var MS = res[1];
+                                              var request = { "phase": 'SHA2',"Sprime":S_prime, "user_id":user};
+                                              //var request = { "phase": 'SHA2',"Sprimes":S_prime, "user_id":user};
+                                               // 3. Send S' to Dealer
+                                               // request model: SHA2|||S'||user_id
+                                               // replay model: COD200||x1,x2,..,xn or COD500||description
+
+                                              $.ajax({
+                                                  url: '/DealerSha2',
+                                                  data: request,
+                                                  type: 'POST',
+                                                  success: function(response){
+                                                      console.log("Dealer response:"+response );
+                                                      var res = response.split("||");
+
+                                                      if (res[0] === COD200) {
+                                                          var Coordinates = res[1];
+
+                                                          // if everything is went well save data for the login
+                                                          // (r, preMc, r_prime, MC, key, MS, Coordinates)
+                                                          saveData(r, pre_MC, r_prime, MC , key, MS, Coordinates);
+
+                                                          // call
+                                                          window.location = "/RightPage"
+                                                      }else{
+                                                          checkError(res[0]);
+                                                          window.location =  "/ErrorPage"
+                                                      }
+                                                  },
+                                                  error: function(error){
+                                                      console.log(error);
+                                                      window.location =  "/ErrorPage"
+                                                  }
+                                              });
+
+                                          }else{
+                                              checkError(res[0]);
+                                              window.location =  "/ErrorPage"
+                                          }
+
+
+
+                                       },error: function(error){
+                                                  console.log(error);
+                                                window.location =  "/ErrorPage"
+                                              }
+                                       });
+
+                              }else{
+                                  // at the first message Dealer has replay with some error
+                                  checkError(res[0]);
+                                  window.location =  "/ErrorPage"
+                              }
+                          },error: function(error){
+                              console.log(error);
+                              alert("CONNECTION ERROR - error during call to the Dealer")
+                              window.location =  "/ErrorPage"
+                          }
+                      });
+
+                      }else{
+                          alert("MC is null");
+                      }
+
+
+              }
+
+            });
+        });
+
+    </script>
+  </head>
+
+  <body class="blue">
+
+
+    <div id="login-page" class="row">
+      <div class="col s12 z-depth-6 card-panel">
+        <form class="login-form">
+              <div class="row">
+                <div class="input-field col s12 center">
+                  <p class="center login-form-text"><h3>Sign up</h3></p>
+                </div>
+              </div>
+
+
+              <div class="row margin">
+                <div class="input-field col s12">
+                  <i class="mdi-social-person-outline prefix"></i>
+                  <input id="username" type="text" class="validate">
+                  <label for="username" class="center-align">Username</label>
+                </div>
+              </div>
+
+
+              <div class="row margin">
+                <div class="input-field col s12">
+                  <i class="mdi-communication-email prefix"></i>
+                  <input id="email" type="email" class="validate">
+                  <label for="email" class="center-align">Email</label>
+                </div>
+              </div>
+
+              <div class="row margin">
+                <div class="input-field col s12">
+                  <i class="mdi-action-lock-outline prefix"></i>
+                  <input id="password" type="password" class="validate">
+                  <label for="password">Password</label>
+                </div>
+              </div>
+
+
+              <div class="row margin">
+                <div class="input-field col s12">
+                  <i class="mdi-action-lock-outline prefix"></i>
+                  <input id="password-again" type="password">
+                  <label for="password-again">Re-type password</label>
+                </div>
+              </div>
+
+
+              <div class="row">
+                <div class="input-field col s12" id="b">
+                   <button class="btn waves-effect waves-light col s12" type="button">Register Now</button>
+                </div>
+
+
+
+                <div class="input-field col s12">
+
+                  <!-- toDO: collega alla pagina di reconstruction-->
+                  <p class="margin center medium-small sign-up">Already have an account? <a href="/Login">Login</a></p>
+                </div>
+              </div>
+        </form>
+      </div>
+    </div>
+
+  </body>
+
+</html>

@@ -1,0 +1,15 @@
+# IDE folders
+.idea/
+
+# Processed files
+.json
+.tsv
+.txt
+.html
+
+# Compiled files
+.pyc
+*.pyc
+
+# Generated Folders
+data_users/
